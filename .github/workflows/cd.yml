@@ -47,11 +47,6 @@ jobs:
           docker compose logs
           exit 1
 
-      - name: Load train and test data into ClickHouse
-        run: |
-          docker compose exec -T bbc-news-api \
-            python scripts/load_clickhouse_data.py --config /app/config.ini
-
       - name: Run functional scenario
         run: |
           docker compose exec -T bbc-news-api \

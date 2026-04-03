@@ -7,6 +7,7 @@ import pytest
 from bbc_news.storage import (
     ClickHousePredictionStore,
     ClickHouseSettings,
+    PredictionClassStat,
     PredictionLogRecord,
     load_clickhouse_settings_from_env,
 )
@@ -63,7 +64,7 @@ def test_clickhouse_store_creates_schema_and_inserts_predictions() -> None:
     store.ensure_ready()
     store.save_predictions(["one", "two"], ["sport", "business"])
 
-    assert len(fake_client.commands) == 3
+    assert len(fake_client.commands) == 2
     assert fake_client.inserts[0][0] == "bbc_news.prediction_logs"
     assert fake_client.inserts[0][2] == [
         "request_id",
@@ -109,4 +110,31 @@ def test_clickhouse_store_reads_recent_predictions() -> None:
             predicted_label="business",
             created_at="2026-04-02T10:00:00+00:00",
         )
+    ]
+
+
+def test_clickhouse_store_aggregates_prediction_class_stats() -> None:
+    fake_client = FakeClient()
+    fake_client.next_result = FakeQueryResult(
+        [
+            ("sport", 3),
+            ("business", 1),
+        ]
+    )
+    store = ClickHousePredictionStore(
+        ClickHouseSettings(
+            host="clickhouse",
+            port=8123,
+            username="app_user",
+            password="secret",
+            database="bbc_news",
+        ),
+        client=fake_client,
+    )
+
+    stats = store.fetch_prediction_class_stats()
+
+    assert stats == [
+        PredictionClassStat(predicted_label="sport", count=3, share=0.75),
+        PredictionClassStat(predicted_label="business", count=1, share=0.25),
     ]
