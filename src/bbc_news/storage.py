@@ -20,7 +20,6 @@ class ClickHouseSettings:
     password: str
     database: str
     predictions_table: str = "prediction_logs"
-    dataset_table: str = "dataset_rows"
     secure: bool = False
 
 
@@ -38,13 +37,6 @@ class PredictionClassStat:
     predicted_label: str
     count: int
     share: float
-
-
-@dataclass(frozen=True)
-class DatasetRecord:
-    article_id: str
-    text: str
-    category: str | None = None
 
 
 class PredictionStore(Protocol):
@@ -105,10 +97,6 @@ def load_clickhouse_settings_from_env() -> ClickHouseSettings | None:
             os.getenv("CLICKHOUSE_PREDICTIONS_TABLE", "prediction_logs").strip(),
             "predictions_table",
         ),
-        dataset_table=_validate_identifier(
-            os.getenv("CLICKHOUSE_DATASET_TABLE", "dataset_rows").strip(),
-            "dataset_table",
-        ),
         secure=_parse_bool(os.getenv("CLICKHOUSE_SECURE"), default=False),
     )
 
@@ -157,10 +145,6 @@ class ClickHousePredictionStore:
     def _predictions_table_ref(self) -> str:
         return f"{self.settings.database}.{self.settings.predictions_table}"
 
-    @property
-    def _dataset_table_ref(self) -> str:
-        return f"{self.settings.database}.{self.settings.dataset_table}"
-
     def ensure_ready(self) -> None:
         self.client.command(f"CREATE DATABASE IF NOT EXISTS {self.settings.database}")
         self.client.command(
@@ -174,19 +158,6 @@ class ClickHousePredictionStore:
             )
             ENGINE = MergeTree
             ORDER BY (created_at, request_id, row_position)
-            """
-        )
-        self.client.command(
-            f"""
-            CREATE TABLE IF NOT EXISTS {self._dataset_table_ref} (
-                dataset_split LowCardinality(String),
-                article_id String,
-                text String,
-                category Nullable(String),
-                loaded_at DateTime('UTC')
-            )
-            ENGINE = MergeTree
-            ORDER BY (dataset_split, article_id)
             """
         )
 
@@ -256,25 +227,6 @@ class ClickHousePredictionStore:
             )
             for row in rows
         ]
-
-    def insert_dataset_rows(self, dataset_split: str, records: list[DatasetRecord]) -> int:
-        normalized_split = dataset_split.strip().lower()
-        if normalized_split not in {"train", "test"}:
-            raise ValueError("dataset_split must be either 'train' or 'test'.")
-        if not records:
-            return 0
-
-        loaded_at = datetime.now(timezone.utc).replace(microsecond=0)
-        rows = [
-            [normalized_split, record.article_id, record.text, record.category, loaded_at]
-            for record in records
-        ]
-        self.client.insert(
-            self._dataset_table_ref,
-            rows,
-            column_names=["dataset_split", "article_id", "text", "category", "loaded_at"],
-        )
-        return len(rows)
 
 
 def _format_timestamp(value: object) -> str:

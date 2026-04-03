@@ -3,7 +3,7 @@
 Проект лабораторной работы по Big Data/ML Ops:
 - подготовка данных и обучение классической модели классификации;
 - API сервис для инференса;
-- запись результатов инференса и наборов данных в ClickHouse;
+- запись результатов инференса в ClickHouse;
 - тесты;
 - DVC stage;
 - Docker image;
@@ -77,20 +77,19 @@ dvc repro
 
 ```bash
 docker compose up -d --build
-docker compose exec -T bbc-news-api python scripts/load_clickhouse_data.py --config /app/config.ini
 python scripts/run_scenario.py --scenario scenario.json --base-url http://localhost:8000 --retries 5 --retry-delay 2
 docker compose down
 ```
 
 В `docker-compose` поднимаются два сервиса:
-- `clickhouse` - база данных для хранения результатов модели и наборов train/test.
+- `clickhouse` - база данных для хранения результатов модели.
 - `bbc-news-api` - API сервиса модели.
 
 ## CI/CD
 
 - CI запускается на `pull_request` в `main`.
 - CI выполняет: обучение, тесты, сборку образа и push в DockerHub (если заданы secrets), подпись образа `cosign`, генерацию `dev_sec_ops.yml`.
-- CD запускается вручную/по расписанию/после CI, поднимает `clickhouse` и `bbc-news-api`, загружает train/test данные в БД и выполняет функциональный сценарий из `scenario.json`.
+- CD запускается вручную/по расписанию/после CI, поднимает `clickhouse` и `bbc-news-api` и выполняет функциональный сценарий из `scenario.json`.
 
 ## Ссылки
 

@@ -64,7 +64,7 @@ def test_clickhouse_store_creates_schema_and_inserts_predictions() -> None:
     store.ensure_ready()
     store.save_predictions(["one", "two"], ["sport", "business"])
 
-    assert len(fake_client.commands) == 3
+    assert len(fake_client.commands) == 2
     assert fake_client.inserts[0][0] == "bbc_news.prediction_logs"
     assert fake_client.inserts[0][2] == [
         "request_id",
