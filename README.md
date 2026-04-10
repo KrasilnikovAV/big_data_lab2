@@ -76,6 +76,7 @@ dvc repro
 ### Docker
 
 ```bash
+cp .env.example .env
 docker compose up -d --build
 python scripts/run_scenario.py --scenario scenario.json --base-url http://localhost:8000 --retries 5 --retry-delay 2
 docker compose down
@@ -90,6 +91,8 @@ docker compose down
 - CI запускается на `pull_request` в `main`.
 - CI выполняет: обучение, тесты, сборку образа и push в DockerHub (если заданы secrets), подпись образа `cosign`, генерацию `dev_sec_ops.yml`.
 - CD запускается вручную/по расписанию/после CI, поднимает `clickhouse` и `bbc-news-api` и выполняет функциональный сценарий из `scenario.json`.
+- Для CD нужно завести GitHub Actions secrets: `CLICKHOUSE_USER` и `CLICKHOUSE_PASSWORD`.
+- Локально переменные для `docker compose` берутся из `.env`, который можно создать из `.env.example`.
 
 ## Ссылки
 
