@@ -14,6 +14,12 @@ jobs:
   deploy-and-functional-test:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    env:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_DATABASE: bbc_news
+      CLICKHOUSE_USER: ${{ secrets.CLICKHOUSE_USER }}
+      CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_PASSWORD }}
     steps:
       - name: Checkout (workflow_run head)
         if: github.event_name == 'workflow_run'
@@ -25,13 +31,10 @@ jobs:
         if: github.event_name != 'workflow_run'
         uses: actions/checkout@v4
 
-      - name: Prepare runtime environment
+      - name: Validate ClickHouse secrets
         run: |
-          echo "CLICKHOUSE_HOST=clickhouse" >> "$GITHUB_ENV"
-          echo "CLICKHOUSE_PORT=8123" >> "$GITHUB_ENV"
-          echo "CLICKHOUSE_DATABASE=bbc_news" >> "$GITHUB_ENV"
-          echo "CLICKHOUSE_USER=ci_user_${GITHUB_RUN_ID}" >> "$GITHUB_ENV"
-          echo "CLICKHOUSE_PASSWORD=$(openssl rand -hex 16)" >> "$GITHUB_ENV"
+          test -n "$CLICKHOUSE_USER" || { echo "::error::Missing GitHub secret CLICKHOUSE_USER"; exit 1; }
+          test -n "$CLICKHOUSE_PASSWORD" || { echo "::error::Missing GitHub secret CLICKHOUSE_PASSWORD"; exit 1; }
 
       - name: Start container
         run: docker compose up -d --build
